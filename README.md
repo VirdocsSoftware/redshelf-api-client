@@ -10,15 +10,14 @@ The client library requires the following libraries:
 * [requests](http://docs.python-requests.org/en/latest/)
 * [pycrypto](https://pypi.python.org/pypi/pycrypto)
 
-sudo pip install requests
-
-sudo pip install pycrypto
+    sudo pip install requests
+    sudo pip install pycrypto
 
 Installation
 ------------
 Clone the client library from github for installation:
 
-git clone https://github.com/VirdocsSoftware/redshelf-api-client.git
+    git clone https://github.com/VirdocsSoftware/redshelf-api-client.git
 
 Basic Usage
 ------------
