@@ -17,19 +17,17 @@ sudo pip install pycrypto
 Installation
 ------------
 Clone the client library from github for installation:
+
 git clone https://github.com/VirdocsSoftware/redshelf-api-client.git
 
 Basic Usage
 ------------
 Import and instance the client object:
 
-from client import ClientV1
-c = ClientV1()
-
-Supply your authentication information:
-
-c.set_user('0d72df20f23558620646fb3ea030f5')
-c.load_key('/path/to/private/key.key')
+    from client import ClientV1
+    c = ClientV1()
+    c.set_user('0d72df20f23558620646fb3ea030f5')
+    c.load_key('/path/to/private/key.key')
 
 API Documentation
 ------------
