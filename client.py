@@ -31,7 +31,7 @@ class Client(object):
         try:
             return r.json()
         except Exception:
-            return {'code': r.status_code, 'text': r.text}
+            return self._error(r)
 
     def repeat(self, data):
         """
@@ -44,7 +44,7 @@ class Client(object):
         try:
             return r.json()
         except Exception:
-            return {'code': r.status_code, 'text': r.text}
+            return self._error(r)
 
     def profile(self):
         """
@@ -55,10 +55,13 @@ class Client(object):
         try:
             return r.json()
         except Exception:
-            return {'code': r.status_code, 'text': r.text}
+            return self._error(r)
 
     ## helpers
     ## ------------
+
+    def _error(self, r):
+        return {'code': r.status_code, 'text': r.text}
 
     def _get_server(self):
         if self.port:
@@ -161,12 +164,12 @@ class ClientV1(Client):
         elif isbn:
             r = requests.get(url=self._get_version_endpoint('book', 'isbn', isbn), headers=self._get_signed_headers())
         else:
-            raise Exception("Please provide the book hash_id or ISBN field.")
+            raise ClientException("Please provide the book hash_id or ISBN field.")
 
         try:
             return r.json()
         except Exception:
-            return {'code': r.status_code, 'text': r.text}
+            return self._error(r)
 
     def book_search(self, isbn=None, title=None):
         """
@@ -182,7 +185,7 @@ class ClientV1(Client):
         try:
             return r.json()
         except Exception:
-            return {'code': r.status_code, 'text': r.text}
+            return self._error(r)
 
     ## User endpoints
     ## ------------
@@ -204,9 +207,29 @@ class ClientV1(Client):
         try:
             return r.json()
         except Exception:
-            return {'code': r.status_code, 'text': r.text}
+            return self._error(r)
 
-    ## Order / Store endpoints
+    def user(self, username=None, email=None):
+        """
+        User endpoint
+        GET /v1/user/
+
+        args: username (str), email (str)
+        """
+
+        if username:
+            r = requests.get(url=self._get_version_endpoint('user', username), headers=self._get_signed_headers())
+        elif email:
+            r = requests.get(url=self._get_version_endpoint('user', 'email', email), headers=self._get_signed_headers())
+        else:
+            raise ClientException("Please provide the username or email address.")
+
+        try:
+            return r.json()
+        except Exception:
+            return self._error(r)
+
+    ## Order endpoints
     ## ------------
 
     def create_order(self, username, digital_pricing=[], print_pricing=[], combo_pricing=[], billing_address={},
@@ -231,7 +254,46 @@ class ClientV1(Client):
         try:
             return r.json()
         except Exception:
-            return {'code': r.status_code, 'text': r.text}
+            return self._error(r)
+
+    def order(self, id):
+        """
+        Order endpoint
+        GET /v1/order/
+
+        args: id (int)
+        """
+        r = requests.get(url=self._get_version_endpoint('order', id), headers=self._get_signed_headers())
+
+        try:
+            return r.json()
+        except Exception:
+            return self._error(r)
+
+    ## Store endpoints
+    ## ------------
+
+    def create_cart(self, username=None, digital_pricing=[], print_pricing=[], combo_pricing=[], label=None):
+        """
+        Cart creation endpoint
+        POST /v1/cart/
+
+        args: username (string) <opt>,  digital_pricing (list <pricing_id>), print_pricing (list <print_option_id>) <opt>,
+              combo_pricing (list <print_option_id>) <opt>, label (string) <opt>
+
+        returns: token for the new cart.
+                 user can be sent to redshelf.com/cart/?t=<token> to assign the cart or if username is provided the
+                 cart will be assigned automatically
+        """
+
+        payload = {'username': username, 'digital_pricing': digital_pricing}
+        request_data = self._get_request_data(payload)
+        r = requests.post(url=self._get_version_endpoint('cart'), data=request_data, headers=self._get_signed_headers(payload))
+
+        try:
+            return r.json()
+        except Exception:
+            return self._error(r)
 
     ## Misc / help endpoints
     ## ------------
@@ -246,7 +308,7 @@ class ClientV1(Client):
         try:
             return r.json()
         except Exception:
-            return {'code': r.status_code, 'text': r.text}
+            return self._error(r)
 
 
 ## #################
