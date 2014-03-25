@@ -270,6 +270,22 @@ class ClientV1(Client):
         except Exception:
             return self._error(r)
 
+    def order_refund(self, id=None, items=[], type='refund'):
+        """
+        Order refund endpoint
+        POST /v1/order/refund/
+
+        args: id (int), items (list <int>), type (string)
+        """
+        payload = {'order_id': id, 'items': items, 'type': type}
+        request_data = self._get_request_data(payload)
+        r = requests.post(url=self._get_version_endpoint('order', 'refund'), data=request_data, headers=self._get_signed_headers(payload))
+
+        try:
+            return r.json()
+        except Exception:
+            return self._error(r)
+
     ## Store endpoints
     ## ------------
 
