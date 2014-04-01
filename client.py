@@ -275,7 +275,7 @@ class ClientV1(Client):
         Order refund endpoint
         POST /v1/order/refund/
 
-        args: id (int), items (list <int>), type (string)
+        args: id (int), items (list <int>)
         """
         payload = {'order_id': id, 'items': items, 'type': type}
         request_data = self._get_request_data(payload)
@@ -288,6 +288,20 @@ class ClientV1(Client):
 
     ## Store endpoints
     ## ------------
+
+    def cart(self, token):
+        """
+        Cart endpoint
+        GET /v1/cart/
+
+        args: token (string)
+        """
+        r = requests.get(url=self._get_version_endpoint('cart', token), headers=self._get_signed_headers())
+
+        try:
+            return r.json()
+        except Exception:
+            return self._error(r)
 
     def create_cart(self, username=None, digital_pricing=[], print_pricing=[], combo_pricing=[], label=None):
         """
