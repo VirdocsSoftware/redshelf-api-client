@@ -171,6 +171,43 @@ class ClientV1(Client):
         except Exception:
             return self._error(r)
 
+    def book_process(self, hash_id, force=False, urgent=False):
+        """
+        Book process endpoint
+        POST /v1/book/<hash_id>/process/
+
+        args: hash_id (str), force (bool), urgent (bool)
+
+        Enqueue a book for processing.  Force will reprocess a book that has been previously processed.
+        WARNING: Reprocessing a live book will cause existing annotations to be deleted. Use with care.
+        """
+        payload = {'force': force, 'urgent': urgent}
+        request_data = self._get_request_data(payload)
+        r = requests.post(url=self._get_version_endpoint('book', hash_id, 'process'), data=request_data, headers=self._get_signed_headers(payload))
+
+        try:
+            return r.json()
+        except Exception:
+            return self._error(r)
+
+    def book_reindex(self, hash_id):
+        """
+        Book reindex endpoint
+        POST /v1/book/<hash_id>/reindex/
+
+        args: hash_id (str)
+
+        Reindex a book in the search system.
+        """
+        payload = {}
+        request_data = self._get_request_data(payload)
+        r = requests.post(url=self._get_version_endpoint('book', hash_id, 'reindex'), data=request_data, headers=self._get_signed_headers(payload))
+
+        try:
+            return r.json()
+        except Exception:
+            return self._error(r)
+
     def book_search(self, isbn=None, title=None):
         """
         Book search endpoint
@@ -190,7 +227,7 @@ class ClientV1(Client):
     ## User endpoints
     ## ------------
 
-    def invite_user(self, email=None, first_name=None, last_name=None, label=None):
+    def invite_user(self, email=None, first_name=None, last_name=None, profile=None, label=None):
         """
         User invite endpoint
         POST /v1/user/invite/
@@ -200,7 +237,7 @@ class ClientV1(Client):
         notes: Create a new RedShelf user and send them an invite email with a generated password.  Requires the
                'invite_user' scope and management permission for the associated white label (if provided).
         """
-        payload = {'email': email, 'first_name': first_name, 'last_name': last_name, 'label': label}
+        payload = {'email': email, 'first_name': first_name, 'last_name': last_name, 'profile': profile, 'label': label}
         request_data = self._get_request_data(payload)
         r = requests.post(url=self._get_version_endpoint('user', 'invite'), data=request_data, headers=self._get_signed_headers(payload))
 
@@ -250,6 +287,22 @@ class ClientV1(Client):
                    'shipping_address': shipping_address, 'label': label}
         request_data = self._get_request_data(payload)
         r = requests.post(url=self._get_version_endpoint('order', 'external'), data=request_data, headers=self._get_signed_headers(payload))
+
+        try:
+            return r.json()
+        except Exception:
+            return self._error(r)
+
+    def order_free(self, username, hash_id, expiration_date=None, label=None):
+        """
+        Create an order for a free title.
+        POST /v1/order/free/
+
+        args: username (str), hash_id (str)
+        """
+        payload = {'username': username, 'hash_id': hash_id, 'expiration_date': expiration_date, 'label': label}
+        request_data = self._get_request_data(payload)
+        r = requests.post(url=self._get_version_endpoint('order', 'free'), data=request_data, headers=self._get_signed_headers(payload))
 
         try:
             return r.json()
