@@ -224,6 +224,21 @@ class ClientV1(Client):
         except Exception:
             return self._error(r)
 
+    def book_index(self, offset=0, limit=0):
+        """
+        Book Index
+        GET /v1/book/index/
+
+        notes: Provides an index of all books controlled by the current account.
+        """
+        query = {'offset': offset, 'limit': limit}
+        r = requests.get(url=self._get_version_endpoint('book', 'index'), params=query, headers=self._get_signed_headers())
+
+        try:
+            return r.json()
+        except Exception:
+            return self._error(r)
+
     ## User endpoints
     ## ------------
 
@@ -260,6 +275,20 @@ class ClientV1(Client):
             r = requests.get(url=self._get_version_endpoint('user', 'email', email), headers=self._get_signed_headers())
         else:
             raise ClientException("Please provide the username or email address.")
+
+        try:
+            return r.json()
+        except Exception:
+            return self._error(r)
+
+    def user_orders(self, username=None):
+        """
+        User orders endpoint
+        GET /v1/user/<username>/orders/
+
+        args: username (str)
+        """
+        r = requests.get(url=self._get_version_endpoint('user', username, 'orders'), headers=self._get_signed_headers())
 
         try:
             return r.json()
@@ -333,6 +362,20 @@ class ClientV1(Client):
         payload = {'order_id': id, 'items': items, 'type': type}
         request_data = self._get_request_data(payload)
         r = requests.post(url=self._get_version_endpoint('order', 'refund'), data=request_data, headers=self._get_signed_headers(payload))
+
+        try:
+            return r.json()
+        except Exception:
+            return self._error(r)
+
+    def order_usage(self, id=None):
+        """
+        Order usage endpoint
+        GET /v1/order/usage/
+
+        args: id (int)
+        """
+        r = requests.get(url=self._get_version_endpoint('order', id, 'usage'), headers=self._get_signed_headers())
 
         try:
             return r.json()
