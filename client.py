@@ -239,6 +239,25 @@ class ClientV1(Client):
         except Exception:
             return self._error(r)
 
+    def book_viewer(self, username=None, hash_id=None):
+        """
+        Book viewer
+        POST /v1/book/viewer/
+
+        args: username <string>, hash_id (book) <string>
+
+        notes: Locates a valid purchase for the provided user/book combination and returns a viewer URL that can be
+        passed to the end user to open the reader.
+        """
+        payload = {'username': username, 'hash_id': hash_id}
+        request_data = self._get_request_data(payload)
+        r = requests.post(url=self._get_version_endpoint('book', 'viewer'), data=request_data, headers=self._get_signed_headers(payload))
+
+        try:
+            return r.json()
+        except Exception:
+            return self._error(r)
+
     ## User endpoints
     ## ------------
 
