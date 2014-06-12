@@ -280,6 +280,24 @@ class ClientV1(Client):
         except Exception:
             return self._error(r)
 
+    def create_user(self, email=None, first_name=None, last_name=None, passwd=None, passwd_confirm=None, label=None):
+        """
+        Create user endpoint
+        POST /v1/user/
+
+        args: email (str), first_name (str), last_name (str), passwd (str) <optional>, passwd_confirm (str) <optional>, label (str) <optional>
+
+        notes: Create a new RedShelf user silently.  Optional password can be omitted to generate a random password.
+        """
+        payload = {'email': email, 'first_name': first_name, 'last_name': last_name, 'passwd': passwd, 'passwd_confirm': passwd_confirm, 'label': label}
+        request_data = self._get_request_data(payload)
+        r = requests.post(url=self._get_version_endpoint('user'), data=request_data, headers=self._get_signed_headers(payload))
+
+        try:
+            return r.json()
+        except Exception:
+            return self._error(r)
+
     def user(self, username=None, email=None):
         """
         User endpoint
