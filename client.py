@@ -258,6 +258,24 @@ class ClientV1(Client):
         except Exception:
             return self._error(r)
 
+    ## Code endpoints
+    ## ------------
+
+    def code_generation(self, hash_id=None, org=None, limit_days=None, expiration_date=None, count=None, samples=False, label=None):
+        """
+        Code generation
+        POST /v1/codes/generate/
+        """
+        payload = {'hash_id': hash_id, 'org': org, 'limit_days': limit_days, 'expiration_date': expiration_date,
+                   'count': count, 'samples': samples, 'label': label}
+        request_data = self._get_request_data(payload)
+        r = requests.post(url=self._get_version_endpoint('codes', 'generate'), data=request_data, headers=self._get_signed_headers(payload))
+
+        try:
+            return r.json()
+        except Exception:
+            return self._error(r)
+
     ## User endpoints
     ## ------------
 
