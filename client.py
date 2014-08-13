@@ -151,11 +151,12 @@ class ClientV1(Client):
     ## Book endpoints
     ## ------------
 
-    def book(self, hash_id=None, isbn=None):
+    def book(self, hash_id=None, isbn=None, sku=None):
         """
         Book endpoint
         GET /v1/book/<hash_id>/
-        GET /v1/book/isbn/<isbn/
+        GET /v1/book/isbn/<isbn>/
+        GET /v1/book/sku/<sku>/
 
         args: hash_id (str) OR isbn (str)
         """
@@ -163,8 +164,10 @@ class ClientV1(Client):
             r = requests.get(url=self._get_version_endpoint('book', hash_id), headers=self._get_signed_headers())
         elif isbn:
             r = requests.get(url=self._get_version_endpoint('book', 'isbn', isbn), headers=self._get_signed_headers())
+        elif sku:
+            r = requests.get(url=self._get_version_endpoint('book', 'sku', sku), headers=self._get_signed_headers())
         else:
-            raise ClientException("Please provide the book hash_id or ISBN field.")
+            raise ClientException("Please provide the book hash_id, isbn, or sku field.")
 
         try:
             return r.json()
@@ -208,14 +211,14 @@ class ClientV1(Client):
         except Exception:
             return self._error(r)
 
-    def book_search(self, isbn=None, title=None):
+    def book_search(self, isbn=None, title=None, author=None, offset=None, limit=None):
         """
         Book search endpoint
         POST /v1/book/search/
 
-        args: isbn (list <str>), title (str)
+        args: isbn (list <str>), title (str), author (str), offset (int), limit (int)
         """
-        payload = {'isbn': isbn, 'title': title}
+        payload = {'isbn': isbn, 'title': title, 'author': author, 'offset': offset, 'limit': limit}
         request_data = self._get_request_data(payload)
         r = requests.post(url=self._get_version_endpoint('book', 'search'), data=request_data, headers=self._get_signed_headers(payload))
 
