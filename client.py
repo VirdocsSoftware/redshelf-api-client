@@ -14,13 +14,15 @@ class Client(object):
         self.server = server
         self.port = port
         self.version = 'v1'
+        self.password = None
+        self.auth_method = None
 
         self.crypt = RSACrypto()
 
         self.username = ''
 
-    ## default endpoints
-    ## ------------
+    # default endpoints
+    # ------------
 
     def index(self):
         """
@@ -57,8 +59,8 @@ class Client(object):
         except Exception:
             return self._error(r)
 
-    ## helpers
-    ## ------------
+    # helpers
+    # ------------
 
     def _error(self, r):
         return {'code': r.status_code, 'text': r.text}
@@ -78,23 +80,32 @@ class Client(object):
         else:
             return self._get_server() + str(ep) + '/'
 
-    def _get_version_endpoint(self, ep, id=None, action=None):
-        if id:
-            if action:
-                return self._get_server() + str(self.version) + '/' + str(ep) + '/' + str(id) + '/' + str(action) + '/'
-            else:
-                return self._get_server() + str(self.version) + '/' + str(ep) + '/' + str(id) + '/'
-        else:
-            return self._get_server() + str(self.version) + '/' + str(ep) + '/'
+    def _get_version_endpoint(self, *args):
+        url = '/'.join(args)
+        return self._get_server() + str(self.version) + '/' + url + '/'
 
-    def _get_signed_headers(self, data=None):
+    def _get_signed_headers(self, data=None, json=False):
         if not data:
             sig = self.crypt.sign_data(self.username)
         else:
             sig = self.crypt.sign_data(simplejson.dumps(data))
 
-        headers = {'signature': sig, 'api_user': self.username, 'user': self.username, 'version': self.version, 'auth_method': 'CRYPTO'}
+        headers = {'signature': sig, 'api-user': self.username, 'user': self.username, 'version': self.version,
+                   'authorization': self.auth_method}
+        if json:
+            headers.update({'content-type': 'application/json'})
         return headers
+
+    def get_headers(self, data=None, json=False):
+        if self.auth_method == 'CryptoAuth':
+            return self._get_signed_headers(data=data, json=json)
+
+        elif self.auth_method == 'SharedKeyAuth':
+            headers = {'api-user': self.username, 'user': self.username, 'version': self.version,
+                       'authorization': self.auth_method, 'api-key': self.password}
+            if json:
+                headers.update({'content-type': 'application/json'})
+            return headers
 
     def _get_request_data(self, data):
         return {'request': simplejson.dumps(data)}
@@ -104,9 +115,15 @@ class Client(object):
 
     def set_key(self, val):
         self.crypt.set_private_key(val)
+        self.auth_method = 'CryptoAuth'
+
+    def set_password(self, val):
+        self.password = val
+        self.auth_method = 'SharedKeyAuth'
 
     def load_key(self, filename):
         self.crypt.load_private_key(filename)
+        self.auth_method = 'CryptoAuth'
 
 
 class RSACrypto(object):
@@ -148,8 +165,8 @@ class ClientV1(Client):
         super(ClientV1, self).__init__(protocol, server, port)
         self.version = 'v1'
 
-    ## Book endpoints
-    ## ------------
+    # Book endpoints
+    # ------------
 
     def book(self, hash_id=None, isbn=None, sku=None):
         """
@@ -161,13 +178,27 @@ class ClientV1(Client):
         args: hash_id (str) OR isbn (str)
         """
         if hash_id:
-            r = requests.get(url=self._get_version_endpoint('book', hash_id), headers=self._get_signed_headers())
+            r = requests.get(url=self._get_version_endpoint('book', hash_id), headers=self.get_headers())
         elif isbn:
-            r = requests.get(url=self._get_version_endpoint('book', 'isbn', isbn), headers=self._get_signed_headers())
+            r = requests.get(url=self._get_version_endpoint('book', 'isbn', isbn), headers=self.get_headers())
         elif sku:
-            r = requests.get(url=self._get_version_endpoint('book', 'sku', sku), headers=self._get_signed_headers())
+            r = requests.get(url=self._get_version_endpoint('book', 'sku', sku), headers=self.get_headers())
         else:
             raise ClientException("Please provide the book hash_id, isbn, or sku field.")
+
+        try:
+            return r.json()
+        except Exception:
+            return self._error(r)
+
+    def book_update(self, hash_id=None):
+        """
+        Book update endpoint
+        PATCH /v1/book/<hash_id>/
+        """
+        payload = {'test': False}
+        request_data = simplejson.dumps({'request': payload})
+        r = requests.patch(url=self._get_version_endpoint('book', hash_id), data=request_data, headers=self.get_headers(payload, json=True))
 
         try:
             return r.json()
@@ -186,7 +217,7 @@ class ClientV1(Client):
         """
         payload = {'force': force, 'urgent': urgent}
         request_data = self._get_request_data(payload)
-        r = requests.post(url=self._get_version_endpoint('book', hash_id, 'process'), data=request_data, headers=self._get_signed_headers(payload))
+        r = requests.post(url=self._get_version_endpoint('book', hash_id, 'process'), data=request_data, headers=self.get_headers(payload))
 
         try:
             return r.json()
@@ -204,7 +235,7 @@ class ClientV1(Client):
         """
         payload = {}
         request_data = self._get_request_data(payload)
-        r = requests.post(url=self._get_version_endpoint('book', hash_id, 'reindex'), data=request_data, headers=self._get_signed_headers(payload))
+        r = requests.post(url=self._get_version_endpoint('book', hash_id, 'reindex'), data=request_data, headers=self.get_headers(payload))
 
         try:
             return r.json()
@@ -220,7 +251,7 @@ class ClientV1(Client):
         """
         payload = {'isbn': isbn, 'title': title, 'author': author, 'offset': offset, 'limit': limit}
         request_data = self._get_request_data(payload)
-        r = requests.post(url=self._get_version_endpoint('book', 'search'), data=request_data, headers=self._get_signed_headers(payload))
+        r = requests.post(url=self._get_version_endpoint('book', 'search'), data=request_data, headers=self.get_headers(payload))
 
         try:
             return r.json()
@@ -235,7 +266,7 @@ class ClientV1(Client):
         notes: Provides an index of all books controlled by the current account.
         """
         query = {'offset': offset, 'limit': limit}
-        r = requests.get(url=self._get_version_endpoint('book', 'index'), params=query, headers=self._get_signed_headers())
+        r = requests.get(url=self._get_version_endpoint('book', 'index'), params=query, headers=self.get_headers())
 
         try:
             return r.json()
@@ -254,15 +285,30 @@ class ClientV1(Client):
         """
         payload = {'username': username, 'hash_id': hash_id}
         request_data = self._get_request_data(payload)
-        r = requests.post(url=self._get_version_endpoint('book', 'viewer'), data=request_data, headers=self._get_signed_headers(payload))
+        r = requests.post(url=self._get_version_endpoint('book', 'viewer'), data=request_data, headers=self.get_headers(payload))
 
         try:
             return r.json()
         except Exception:
             return self._error(r)
 
-    ## Code endpoints
-    ## ------------
+    def book_pricing(self, isbn=None):
+        """
+        Book pricing
+        POST /v1/book/<isbn>/pricing
+
+        args: isbn <string>
+
+        notes: retrieves the the standard and sale pricing options for the provided isbn
+        """
+        r = requests.get(url=self._get_version_endpoint('book', 'isbn', isbn, 'pricing'), headers=self.get_headers())
+        try:
+            return r.json()
+        except Exception:
+            return self._error(r)
+
+    # Code endpoints
+    # ------------
 
     def code_generation(self, hash_id=None, org=None, limit_days=None, expiration_date=None, count=None, samples=False, label=None):
         """
@@ -272,15 +318,29 @@ class ClientV1(Client):
         payload = {'hash_id': hash_id, 'org': org, 'limit_days': limit_days, 'expiration_date': expiration_date,
                    'count': count, 'samples': samples, 'label': label}
         request_data = self._get_request_data(payload)
-        r = requests.post(url=self._get_version_endpoint('codes', 'generate'), data=request_data, headers=self._get_signed_headers(payload))
+        r = requests.post(url=self._get_version_endpoint('codes', 'generate'), data=request_data, headers=self.get_headers(payload))
 
         try:
             return r.json()
         except Exception:
             return self._error(r)
 
-    ## User endpoints
-    ## ------------
+    def code_summary(self):
+        """
+        Code summary
+        POST /v1/codes/summary/
+
+        notes: Summary of code activity for the current account (generated vs. redeemed)
+        """
+        r = requests.get(url=self._get_version_endpoint('codes', 'summary'), headers=self.get_headers())
+
+        try:
+            return r.json()
+        except Exception:
+            return self._error(r)
+
+    # User endpoints
+    # ------------
 
     def invite_user(self, email=None, first_name=None, last_name=None, profile=None, label=None):
         """
@@ -294,7 +354,7 @@ class ClientV1(Client):
         """
         payload = {'email': email, 'first_name': first_name, 'last_name': last_name, 'profile': profile, 'label': label}
         request_data = self._get_request_data(payload)
-        r = requests.post(url=self._get_version_endpoint('user', 'invite'), data=request_data, headers=self._get_signed_headers(payload))
+        r = requests.post(url=self._get_version_endpoint('user', 'invite'), data=request_data, headers=self.get_headers(payload))
 
         try:
             return r.json()
@@ -312,7 +372,7 @@ class ClientV1(Client):
         """
         payload = {'email': email, 'first_name': first_name, 'last_name': last_name, 'passwd': passwd, 'passwd_confirm': passwd_confirm, 'label': label}
         request_data = self._get_request_data(payload)
-        r = requests.post(url=self._get_version_endpoint('user'), data=request_data, headers=self._get_signed_headers(payload))
+        r = requests.post(url=self._get_version_endpoint('user'), data=request_data, headers=self.get_headers(payload))
 
         try:
             return r.json()
@@ -328,9 +388,9 @@ class ClientV1(Client):
         """
 
         if username:
-            r = requests.get(url=self._get_version_endpoint('user', username), headers=self._get_signed_headers())
+            r = requests.get(url=self._get_version_endpoint('user', username), headers=self.get_headers())
         elif email:
-            r = requests.get(url=self._get_version_endpoint('user', 'email', email), headers=self._get_signed_headers())
+            r = requests.get(url=self._get_version_endpoint('user', 'email', email), headers=self.get_headers())
         else:
             raise ClientException("Please provide the username or email address.")
 
@@ -346,18 +406,18 @@ class ClientV1(Client):
 
         args: username (str)
         """
-        r = requests.get(url=self._get_version_endpoint('user', username, 'orders'), headers=self._get_signed_headers())
+        r = requests.get(url=self._get_version_endpoint('user', username, 'orders'), headers=self.get_headers())
 
         try:
             return r.json()
         except Exception:
             return self._error(r)
 
-    ## Order endpoints
-    ## ------------
+    # Order endpoints
+    # ------------
 
     def create_order(self, username, digital_pricing=[], print_pricing=[], combo_pricing=[], billing_address={},
-                     shipping_address={}, label=None):
+                     shipping_address={}, send_email=None, org=None, label=None):
         """
         Order creation endpoint for third-party processed orders
         POST /v1/order/external/
@@ -371,9 +431,9 @@ class ClientV1(Client):
                permission for the associated white label (if provided).
         """
         payload = {'username': username, 'digital_pricing': digital_pricing, 'billing_address': billing_address,
-                   'shipping_address': shipping_address, 'label': label}
+                   'shipping_address': shipping_address, 'send_email': send_email, 'org': org, 'label': label}
         request_data = self._get_request_data(payload)
-        r = requests.post(url=self._get_version_endpoint('order', 'external'), data=request_data, headers=self._get_signed_headers(payload))
+        r = requests.post(url=self._get_version_endpoint('order', 'external'), data=request_data, headers=self.get_headers(payload))
 
         try:
             return r.json()
@@ -389,7 +449,7 @@ class ClientV1(Client):
         """
         payload = {'username': username, 'hash_id': hash_id, 'expiration_date': expiration_date, 'label': label}
         request_data = self._get_request_data(payload)
-        r = requests.post(url=self._get_version_endpoint('order', 'free'), data=request_data, headers=self._get_signed_headers(payload))
+        r = requests.post(url=self._get_version_endpoint('order', 'free'), data=request_data, headers=self.get_headers(payload))
 
         try:
             return r.json()
@@ -403,7 +463,7 @@ class ClientV1(Client):
 
         args: id (int)
         """
-        r = requests.get(url=self._get_version_endpoint('order', id), headers=self._get_signed_headers())
+        r = requests.get(url=self._get_version_endpoint('order', id), headers=self.get_headers())
 
         try:
             return r.json()
@@ -419,7 +479,7 @@ class ClientV1(Client):
         """
         payload = {'order_id': id, 'items': items, 'type': type}
         request_data = self._get_request_data(payload)
-        r = requests.post(url=self._get_version_endpoint('order', 'refund'), data=request_data, headers=self._get_signed_headers(payload))
+        r = requests.post(url=self._get_version_endpoint('order', 'refund'), data=request_data, headers=self.get_headers(payload))
 
         try:
             return r.json()
@@ -433,15 +493,15 @@ class ClientV1(Client):
 
         args: id (int)
         """
-        r = requests.get(url=self._get_version_endpoint('order', id, 'usage'), headers=self._get_signed_headers())
+        r = requests.get(url=self._get_version_endpoint('order', id, 'usage'), headers=self.get_headers())
 
         try:
             return r.json()
         except Exception:
             return self._error(r)
 
-    ## Store endpoints
-    ## ------------
+    # Store endpoints
+    # ------------
 
     def cart(self, token):
         """
@@ -450,7 +510,7 @@ class ClientV1(Client):
 
         args: token (string)
         """
-        r = requests.get(url=self._get_version_endpoint('cart', token), headers=self._get_signed_headers())
+        r = requests.get(url=self._get_version_endpoint('cart', token), headers=self.get_headers())
 
         try:
             return r.json()
@@ -472,22 +532,41 @@ class ClientV1(Client):
 
         payload = {'username': username, 'digital_pricing': digital_pricing}
         request_data = self._get_request_data(payload)
-        r = requests.post(url=self._get_version_endpoint('cart'), data=request_data, headers=self._get_signed_headers(payload))
+        r = requests.post(url=self._get_version_endpoint('cart'), data=request_data, headers=self.get_headers(payload))
 
         try:
             return r.json()
         except Exception:
             return self._error(r)
 
-    ## Misc / help endpoints
-    ## ------------
+    # Import endpoints
+    # ------------
+
+    def import_search(self, isbn=None, title=None, author=None, offset=None, limit=None):
+        """
+        Import search endpoint
+        POST /v1/import/search/
+
+        args: isbn (list <str>), title (str), author (str), offset (int), limit (int)
+        """
+        payload = {'isbn': isbn, 'title': title, 'author': author, 'offset': offset, 'limit': limit}
+        request_data = self._get_request_data(payload)
+        r = requests.post(url=self._get_version_endpoint('import', 'search'), data=request_data, headers=self.get_headers(payload))
+
+        try:
+            return r.json()
+        except Exception:
+            return self._error(r)
+
+    # Misc / help endpoints
+    # ------------
 
     def describe(self):
         """
         V1 Describe endpoint
         GET /v1/describe/
         """
-        r = requests.get(url=self._get_version_endpoint('describe'), headers=self._get_signed_headers())
+        r = requests.get(url=self._get_version_endpoint('describe'), headers=self.get_headers())
 
         try:
             return r.json()
@@ -495,9 +574,9 @@ class ClientV1(Client):
             return self._error(r)
 
 
-## #################
-## Support functions
-## #################
+# #################
+# Support functions
+# #################
 
 def format_address(first_name=None, last_name=None, full_name=None, company_name=None, line_1=None,
                    line_2=None, city=None, state=None, postal_code=None, country=None):
@@ -506,7 +585,7 @@ def format_address(first_name=None, last_name=None, full_name=None, company_name
     """
     addr = {}
 
-    ## parse single field names
+    # parse single field names
     if full_name and not first_name and not last_name:
         n_list = unicode(full_name).strip().split()
         first_name = n_list[0]
@@ -521,7 +600,7 @@ def format_address(first_name=None, last_name=None, full_name=None, company_name
     if not last_name:
         raise ClientException('Last name is required.')
 
-    ## clean data for transit and do some basic validation
+    # clean data for transit and do some basic validation
     addr.update({'first_name': first_name, 'last_name': last_name})
 
     if company_name:
