@@ -417,7 +417,7 @@ class ClientV1(Client):
     # ------------
 
     def create_order(self, username, digital_pricing=[], print_pricing=[], combo_pricing=[], billing_address={},
-                     shipping_address={}, send_email=None, org=None, label=None):
+                     shipping_address={}, order_type=None, send_email=None, org=None, label=None):
         """
         Order creation endpoint for third-party processed orders
         POST /v1/order/external/
@@ -431,7 +431,8 @@ class ClientV1(Client):
                permission for the associated white label (if provided).
         """
         payload = {'username': username, 'digital_pricing': digital_pricing, 'billing_address': billing_address,
-                   'shipping_address': shipping_address, 'send_email': send_email, 'org': org, 'label': label}
+                   'shipping_address': shipping_address, 'send_email': send_email, 'org': org, 'label': label,
+                   'order_type': order_type}
         request_data = self._get_request_data(payload)
         r = requests.post(url=self._get_version_endpoint('order', 'external'), data=request_data, headers=self.get_headers(payload))
 
